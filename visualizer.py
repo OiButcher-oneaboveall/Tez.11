@@ -20,6 +20,7 @@ ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d42
 
 
 
+
 def plot_gantt(log):
     import plotly.graph_objects as go
 
@@ -30,25 +31,45 @@ def plot_gantt(log):
     }
 
     bars = []
-    y_labels = []
     for entry in log:
         try:
+            # Başlangıç zamanı
             dep_hour, dep_min = map(int, entry["departure"][:5].split(":"))
-            arr_hour, arr_min = map(int, entry["arrival"][:5].split(":"))
             start_minute = dep_hour * 60 + dep_min
-            end_minute = arr_hour * 60 + arr_min
 
-            if start_minute < end_minute:
-                bars.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_minute, Duration=end_minute - start_minute, Color=colors["Yol"]))
-
-            wait_min = entry.get("wait", 0)
-            if wait_min > 0:
-                bars.append(dict(Task=f"{entry['to']} (Bekleme)", Start=end_minute, Duration=wait_min, Color=colors["Bekleme"]))
-                end_minute += wait_min
-
+            # Servis süresi önce gelir
             service_min = entry.get("service", 0)
             if service_min > 0:
-                bars.append(dict(Task=f"{entry['to']} (Servis)", Start=end_minute, Duration=service_min, Color=colors["Servis"]))
+                bars.append(dict(
+                    Task=f"{entry['from']} (Servis)",
+                    Start=start_minute,
+                    Duration=service_min,
+                    Color=colors["Servis"]
+                ))
+                start_minute += service_min  # servis sonrası bekleme başlar
+
+            # Bekleme süresi (servisten sonra olmalı)
+            wait_min = entry.get("wait", 0)
+            if wait_min > 0:
+                bars.append(dict(
+                    Task=f"{entry['from']} (Bekleme)",
+                    Start=start_minute,
+                    Duration=wait_min,
+                    Color=colors["Bekleme"]
+                ))
+                start_minute += wait_min
+
+            # Yolculuk süresi
+            arr_hour, arr_min = map(int, entry["arrival"][:5].split(":"))
+            arrival_minute = arr_hour * 60 + arr_min
+
+            if start_minute < arrival_minute:
+                bars.append(dict(
+                    Task=f"{entry['from']}→{entry['to']} (Yol)",
+                    Start=start_minute,
+                    Duration=arrival_minute - start_minute,
+                    Color=colors["Yol"]
+                ))
 
         except Exception as e:
             print("Zaman çizelgesi hatası:", e)
@@ -65,8 +86,8 @@ def plot_gantt(log):
         ))
 
     fig.update_layout(
-        title="Zaman Çizelgesi (Dakika Bazlı)",
-        xaxis=dict(title="Dakika", tick0=360, dtick=30),  # 06:00 = 360. Her 30 dk bir çizgi
+        title="Zaman Çizelgesi (Servis → Bekleme → Yol)",
+        xaxis=dict(title="Dakika", tick0=360, dtick=30),
         yaxis=dict(title="Görev", automargin=True),
         height=600,
         margin=dict(l=150, r=20, t=40, b=40)
