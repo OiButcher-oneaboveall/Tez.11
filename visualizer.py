@@ -22,6 +22,7 @@ ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d42
 
 
 
+
 def plot_gantt(log):
     import plotly.graph_objects as go
 
@@ -48,7 +49,7 @@ def plot_gantt(log):
                     Color=colors["Yol"]
                 ))
 
-            # Hedefte servis süresi varsa
+            # Servis süresi varsa önce servis
             service_min = entry.get("service", 0)
             if service_min > 0:
                 bars.append(dict(
@@ -57,9 +58,9 @@ def plot_gantt(log):
                     Duration=service_min,
                     Color=colors["Servis"]
                 ))
-                end_minute += service_min
+                end_minute += service_min  # servis sonrası bekleme başlasın
 
-            # Hedefte bekleme süresi varsa
+            # Bekleme süresi varsa sonra bekleme
             wait_min = entry.get("wait", 0)
             if wait_min > 0:
                 bars.append(dict(
@@ -72,7 +73,33 @@ def plot_gantt(log):
         except Exception as e:
             print("Zaman çizelgesi hatası:", e)
 
-    # Saat.dakika etiketleme fonksiyonu
+    def to_hour_min(minute):
+        return f"{minute//60:02d}:{minute%60:02d}"
+
+    fig = go.Figure()
+    for bar in bars:
+        fig.add_trace(go.Bar(
+            x=[bar["Duration"]],
+            y=[bar["Task"]],
+            base=bar["Start"],
+            orientation="h",
+            marker=dict(color=bar["Color"]),
+            hovertemplate=f"{bar['Task']}<br>Başlangıç: {to_hour_min(bar['Start'])}<br>Süre: {{x}} dk<extra></extra>"
+        ))
+
+    fig.update_layout(
+        title="Zaman Çizelgesi (Yol → Servis → Bekleme)",
+        xaxis=dict(
+            title="Zaman (saat:dakika)",
+            tickmode="array",
+            tickvals=list(range(360, 1100, 30)),
+            ticktext=[to_hour_min(t) for t in range(360, 1100, 30)]
+        ),
+        yaxis=dict(title="Görev", automargin=True),
+        height=700,
+        margin=dict(l=150, r=20, t=40, b=40)
+    )
+    return fig
     def to_hour_min(minute):
         return f"{minute//60:02d}:{minute%60:02d}"
 
