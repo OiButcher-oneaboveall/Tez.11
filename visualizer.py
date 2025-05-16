@@ -2,6 +2,8 @@
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import folium
+from folium import Tooltip, PolyLine, Marker, Icon
+from datetime import datetime
 
 city_coords = {
     "Rafineri": [41.0351, 28.7663],
@@ -15,23 +17,46 @@ city_coords = {
 }
 
 def plot_gantt(log):
+    base_date = datetime(2024, 1, 1)
     tasks = []
-    for i, entry in enumerate(log):
-        start = entry["arrival"]
-        end = entry["departure"]
-        tasks.append(dict(Task=f"{entry['from']}→{entry['to']}", Start=start, Finish=end))
-    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True)
+    for entry in log:
+        start_time = datetime.strptime(entry["arrival"], "%H:%M")
+        end_time = datetime.strptime(entry["departure"], "%H:%M")
+        start_dt = base_date.replace(hour=start_time.hour, minute=start_time.minute)
+        end_dt = base_date.replace(hour=end_time.hour, minute=end_time.minute)
+        tasks.append(dict(Task=f"{entry['from']}→{entry['to']}", Start=start_dt, Finish=end_dt))
+    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True,
+                          showgrid_x=True, showgrid_y=True)
     return fig
 
-def plot_folium_route(city_names):
+def plot_folium_route(city_names, log=None):
     start_coord = city_coords.get("Rafineri", [41.015, 28.979])
     m = folium.Map(location=start_coord, zoom_start=11)
+
     for city in city_names:
         coord = city_coords.get(city)
         if coord:
             folium.Marker(location=coord, tooltip=city, icon=folium.Icon(color="blue")).add_to(m)
-    path = [city_coords[city] for city in city_names if city in city_coords]
-    folium.PolyLine(path, color="red", weight=5).add_to(m)
+
+    for i in range(len(city_names) - 1):
+        from_city = city_names[i]
+        to_city = city_names[i + 1]
+        coord1 = city_coords.get(from_city)
+        coord2 = city_coords.get(to_city)
+        if coord1 and coord2:
+            duration = ""
+            if log:
+                for entry in log:
+                    if entry["from"] == from_city and entry["to"] == to_city:
+                        start = entry["arrival"]
+                        end = entry["departure"]
+                        sh, sm = map(int, start.split(":"))
+                        eh, em = map(int, end.split(":"))
+                        duration = f"{(eh * 60 + em) - (sh * 60 + sm)} dk"
+                        break
+            label = f"{from_city} → {to_city}<br>{duration}" if duration else f"{from_city} → {to_city}"
+            folium.PolyLine([coord1, coord2], color="red", weight=5,
+                            tooltip=Tooltip(label, sticky=True)).add_to(m)
     return m
 
 def plot_scenario_comparison(data):
