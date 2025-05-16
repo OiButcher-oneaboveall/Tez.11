@@ -2,3 +2,4 @@ streamlit
 plotly
 openrouteservice
 folium
+streamlit-option-menu
