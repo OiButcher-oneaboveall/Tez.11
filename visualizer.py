@@ -23,6 +23,7 @@ ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d42
 
 
 
+
 def plot_gantt(log):
     import plotly.graph_objects as go
 
@@ -40,7 +41,7 @@ def plot_gantt(log):
             start_minute = dep_hour * 60 + dep_min
             end_minute = arr_hour * 60 + arr_min
 
-            # Yolculuk çubuğu
+            # Yolculuk
             if start_minute < end_minute:
                 bars.append(dict(
                     Task=f"{entry['from']}→{entry['to']} (Yol)",
@@ -49,7 +50,7 @@ def plot_gantt(log):
                     Color=colors["Yol"]
                 ))
 
-            # Servis süresi varsa önce servis
+            # Servis varsa
             service_min = entry.get("service", 0)
             if service_min > 0:
                 bars.append(dict(
@@ -58,9 +59,9 @@ def plot_gantt(log):
                     Duration=service_min,
                     Color=colors["Servis"]
                 ))
-                end_minute += service_min  # servis sonrası bekleme başlasın
+                end_minute += service_min
 
-            # Bekleme süresi varsa sonra bekleme
+            # Bekleme varsa
             wait_min = entry.get("wait", 0)
             if wait_min > 0:
                 bars.append(dict(
@@ -69,10 +70,38 @@ def plot_gantt(log):
                     Duration=wait_min,
                     Color=colors["Bekleme"]
                 ))
+                end_minute += wait_min  # bu satır önemli
 
         except Exception as e:
             print("Zaman çizelgesi hatası:", e)
 
+    def to_hour_min(minute):
+        return f"{minute//60:02d}:{minute%60:02d}"
+
+    fig = go.Figure()
+    for bar in bars:
+        fig.add_trace(go.Bar(
+            x=[bar["Duration"]],
+            y=[bar["Task"]],
+            base=bar["Start"],
+            orientation="h",
+            marker=dict(color=bar["Color"]),
+            hovertemplate=f"{bar['Task']}<br>Başlangıç: {to_hour_min(bar['Start'])}<br>Süre: {{x}} dk<extra></extra>"
+        ))
+
+    fig.update_layout(
+        title="Zaman Çizelgesi (Yol → Servis → Bekleme)",
+        xaxis=dict(
+            title="Zaman (saat:dakika)",
+            tickmode="array",
+            tickvals=list(range(360, 1100, 30)),
+            ticktext=[to_hour_min(t) for t in range(360, 1100, 30)]
+        ),
+        yaxis=dict(title="Görev", automargin=True),
+        height=700,
+        margin=dict(l=150, r=20, t=40, b=40)
+    )
+    return fig
     def to_hour_min(minute):
         return f"{minute//60:02d}:{minute%60:02d}"
 
