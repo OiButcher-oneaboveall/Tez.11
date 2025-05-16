@@ -12,7 +12,7 @@ if "sonuc" not in st.session_state:
 if "senaryolar" not in st.session_state:
     st.session_state.senaryolar = []
 
-st.title("🚛 Rota Optimizasyonu")
+st.title("🚛 Rota Optimizasyon Uygulaması")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -25,31 +25,31 @@ with col3:
 isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
 hesapla = st.button("🚀 Hesapla ve Kaydet")
 
-# >>> SADECE ŞU KISIM EKLENDİ <<<
-col_dl, col_up = st.columns(2)
-with col_dl:
+# SADECE BURASI EKLENDİ
+col_d, col_u = st.columns(2)
+with col_d:
     if st.session_state.sonuc:
         st.download_button(
-            "📤 JSON Kaydet",
+            "📤 Senaryo Kaydet (JSON)",
             data=json.dumps(st.session_state.sonuc, indent=2),
             file_name=f"{st.session_state.sonuc['name']}.json",
             mime="application/json"
         )
-with col_up:
-    uploaded_file = st.file_uploader("📥 JSON Yükle", type=["json"])
-    if uploaded_file:
+with col_u:
+    uploaded_file = st.file_uploader("📥 Senaryo Yükle (.json)", type=["json"])
+    if uploaded_file is not None:
         try:
-            loaded = json.load(uploaded_file)
-            st.session_state.sonuc = loaded
-            if loaded["name"] not in [s["name"] for s in st.session_state.senaryolar]:
-                st.session_state.senaryolar.append(loaded)
-            st.success(f"{loaded['name']} yüklendi.")
+            data = json.load(uploaded_file)
+            st.session_state.sonuc = data
+            if data["name"] not in [s["name"] for s in st.session_state.senaryolar]:
+                st.session_state.senaryolar.append(data)
+            st.success(f"{data['name']} başarıyla yüklendi.")
         except Exception as e:
-            st.error("Yükleme hatası: " + str(e))
-# <<< SADECE BU KISIM EKLENDİ >>>
+            st.error("Yükleme başarısız: " + str(e))
+# BURAYA KADAR EKLENDİ
 
 if hesapla:
-    with st.spinner("Hesaplanıyor..."):
+    with st.spinner("Genetik algoritma çalışıyor..."):
         route, dist, time, risk, log, avg_speed = run_ga(pop_size, generations, max_risk, "Minimum Süre")
         st.session_state.sonuc = {
             "name": isim,
@@ -70,7 +70,7 @@ if st.session_state.sonuc:
     col1.metric("Mesafe (km)", f"{s['dist']:.2f}")
     col2.metric("Süre (dk)", f"{s['time']:.2f}")
     col3.metric("Risk", f"{s['risk']:.4f}")
-    col4.metric("Hız (km/s)", f"{s['avg_speed']:.2f}")
+    col4.metric("Ortalama Hız", f"{s['avg_speed']:.2f}")
 
     st.subheader("🗺️ Harita")
     fmap = plot_folium_route(s["route"], s["log"])
