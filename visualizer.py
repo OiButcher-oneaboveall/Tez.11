@@ -18,7 +18,11 @@ city_coords = {
 
 ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")
 
+
 def plot_gantt(log):
+    from datetime import datetime, timedelta
+    import plotly.graph_objects as go
+
     colors = {
         "Yol": "rgb(31, 119, 180)",
         "Bekleme": "rgb(255, 127, 14)",
@@ -28,8 +32,8 @@ def plot_gantt(log):
     bars = []
     for entry in log:
         try:
-            start_dt = datetime.strptime(entry["departure"][:5], "%H:%M")
-            end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M")
+            start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+            end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
 
             if start_dt < end_dt:
                 bars.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt, Color=colors["Yol"]))
@@ -60,13 +64,12 @@ def plot_gantt(log):
         ))
     fig.update_layout(
         title="Zaman Çizelgesi (Gantt Şeması)",
-        xaxis=dict(title="Zaman", type="date"),
+        xaxis=dict(title="Zaman", type="date", tickformat="%H:%M"),
         yaxis=dict(title="Görev", automargin=True),
         height=600,
         margin=dict(l=150, r=20, t=40, b=40)
     )
     return fig
-
 def plot_folium_route(city_names, log=None):
     m = folium.Map(location=[41.03, 28.96], zoom_start=11)
     for idx, city in enumerate(city_names):
