@@ -19,52 +19,54 @@ city_coords = {
 ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")
 
 
+
 def plot_gantt(log):
-    from datetime import datetime, timedelta
     import plotly.graph_objects as go
 
     colors = {
-        "Yol": "rgb(31, 119, 180)",
-        "Bekleme": "rgb(255, 127, 14)",
-        "Servis": "rgb(44, 160, 44)"
+        "Yol": "#1f77b4",
+        "Bekleme": "#ff7f0e",
+        "Servis": "#2ca02c"
     }
 
     bars = []
+    y_labels = []
     for entry in log:
         try:
-            start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
-            end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+            dep_hour, dep_min = map(int, entry["departure"][:5].split(":"))
+            arr_hour, arr_min = map(int, entry["arrival"][:5].split(":"))
+            start_minute = dep_hour * 60 + dep_min
+            end_minute = arr_hour * 60 + arr_min
 
-            if start_dt < end_dt:
-                bars.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt, Color=colors["Yol"]))
+            if start_minute < end_minute:
+                bars.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_minute, Duration=end_minute - start_minute, Color=colors["Yol"]))
+
             wait_min = entry.get("wait", 0)
             if wait_min > 0:
-                wait_start = end_dt
-                wait_end = wait_start + timedelta(minutes=wait_min)
-                bars.append(dict(Task=f"{entry['to']} (Bekleme)", Start=wait_start, Finish=wait_end, Color=colors["Bekleme"]))
-                end_dt = wait_end
+                bars.append(dict(Task=f"{entry['to']} (Bekleme)", Start=end_minute, Duration=wait_min, Color=colors["Bekleme"]))
+                end_minute += wait_min
+
             service_min = entry.get("service", 0)
             if service_min > 0:
-                service_start = end_dt
-                service_end = service_start + timedelta(minutes=service_min)
-                bars.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end, Color=colors["Servis"]))
+                bars.append(dict(Task=f"{entry['to']} (Servis)", Start=end_minute, Duration=service_min, Color=colors["Servis"]))
+
         except Exception as e:
-            print(f"Gantt log hatası: {e}")
+            print("Zaman çizelgesi hatası:", e)
 
     fig = go.Figure()
     for bar in bars:
-        duration = (bar["Finish"] - bar["Start"]).total_seconds() / 60
         fig.add_trace(go.Bar(
-            x=[duration],
+            x=[bar["Duration"]],
             y=[bar["Task"]],
             base=bar["Start"],
-            orientation='h',
+            orientation="h",
             marker=dict(color=bar["Color"]),
-            hovertemplate=f"{bar['Task']}<br>%{{base|%H:%M}} - %{{x|.0f}} dk<extra></extra>"
+            hovertemplate=f"{bar['Task']}<br>Başlangıç: {{base}} dk<br>Süre: {{x}} dk<extra></extra>"
         ))
+
     fig.update_layout(
-        title="Zaman Çizelgesi (Gantt Şeması)",
-        xaxis=dict(title="Zaman", type="date", tickformat="%H:%M"),
+        title="Zaman Çizelgesi (Dakika Bazlı)",
+        xaxis=dict(title="Dakika", tick0=360, dtick=30),  # 06:00 = 360. Her 30 dk bir çizgi
         yaxis=dict(title="Görev", automargin=True),
         height=600,
         margin=dict(l=150, r=20, t=40, b=40)
