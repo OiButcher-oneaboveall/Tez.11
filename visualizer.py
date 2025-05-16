@@ -3,30 +3,39 @@ import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import folium
 from folium import Tooltip, PolyLine, Marker, Icon
-from datetime import datetime
+from datetime import datetime, timedelta
+import openrouteservice
 
 city_coords = {
-    "Rafineri": [41.0351, 28.7663],
-    "Gürpınar": [40.9946, 28.5764],
-    "Yenikapı": [41.0030, 28.9497],
-    "Selimiye": [41.0054, 29.0275],
-    "İçerenköy": [40.9845, 29.0936],
-    "Tophane": [41.0273, 28.9768],
-    "Alibeyköy": [41.0662, 28.9314],
+    "Rafineri": [41.0343, 28.7662],
+    "Gürpınar": [40.9802, 28.6131],
+    "Yenikapı": [41.0048, 28.9497],
+    "Selimiye": [41.0054, 29.0240],
+    "İçerenköy": [40.9854, 29.0933],
+    "Tophane": [41.0292, 28.9768],
+    "Alibeyköy": [41.0696, 28.9366],
     "İstinye": [41.1099, 29.0570]
 }
+
+ors_client = openrouteservice.Client(key="your-api-key")  # <- Buraya kendi API anahtarını gir
 
 def plot_gantt(log):
     base_date = datetime(2024, 1, 1)
     tasks = []
     for entry in log:
-        start_time = datetime.strptime(entry["arrival"], "%H:%M")
-        end_time = datetime.strptime(entry["departure"], "%H:%M")
-        start_dt = base_date.replace(hour=start_time.hour, minute=start_time.minute)
-        end_dt = base_date.replace(hour=end_time.hour, minute=end_time.minute)
-        tasks.append(dict(Task=f"{entry['from']}→{entry['to']}", Start=start_dt, Finish=end_dt))
-    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True,
-                          showgrid_x=True, showgrid_y=True)
+        start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+        end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+        tasks.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt))
+        if entry.get("wait", 0) > 0:
+            wait_start = end_dt
+            wait_end = wait_start + timedelta(minutes=entry["wait"])
+            tasks.append(dict(Task=f"{entry['to']} (Bekleme)", Start=wait_start, Finish=wait_end))
+            end_dt = wait_end
+        if entry.get("service", 0) > 0:
+            service_start = end_dt
+            service_end = service_start + timedelta(minutes=entry["service"])
+            tasks.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end))
+    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True, showgrid_x=True, showgrid_y=True)
     return fig
 
 def plot_folium_route(city_names, log=None):
@@ -40,23 +49,31 @@ def plot_folium_route(city_names, log=None):
 
     for i in range(len(city_names) - 1):
         from_city = city_names[i]
-        to_city = city_names[i + 1]
-        coord1 = city_coords.get(from_city)
-        coord2 = city_coords.get(to_city)
-        if coord1 and coord2:
-            duration = ""
+        to_city = city_names[i+1]
+        coord1 = city_coords[from_city]
+        coord2 = city_coords[to_city]
+
+        try:
+            route = ors_client.directions(
+                coordinates=[coord1[::-1], coord2[::-1]],
+                profile='driving-car',
+                format='geojson'
+            )
+            tooltip = f"{from_city} → {to_city}"
             if log:
                 for entry in log:
                     if entry["from"] == from_city and entry["to"] == to_city:
-                        start = entry["arrival"]
-                        end = entry["departure"]
-                        sh, sm = map(int, start.split(":"))
-                        eh, em = map(int, end.split(":"))
-                        duration = f"{(eh * 60 + em) - (sh * 60 + sm)} dk"
+                        sh, sm = map(int, entry["departure"].split(":")[:2])
+                        eh, em = map(int, entry["arrival"].split(":")[:2])
+                        duration = (eh * 60 + em) - (sh * 60 + sm)
+                        tooltip += f"<br>{duration} dk"
                         break
-            label = f"{from_city} → {to_city}<br>{duration}" if duration else f"{from_city} → {to_city}"
+            folium.GeoJson(route, name="route", tooltip=tooltip).add_to(m)
+
+        except Exception:
             folium.PolyLine([coord1, coord2], color="red", weight=5,
-                            tooltip=Tooltip(label, sticky=True)).add_to(m)
+                            tooltip=Tooltip(f"{from_city} → {to_city}")).add_to(m)
+
     return m
 
 def plot_scenario_comparison(data):
