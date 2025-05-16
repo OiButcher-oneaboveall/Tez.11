@@ -5,12 +5,23 @@ import numpy as np
 cities = ["Rafineri", "Gürpınar", "Yenikapı", "Selimiye", "İçerenköy", "Tophane", "Alibeyköy", "İstinye"]
 num_cities = len(cities)
 
-distance_matrix = np.random.uniform(5, 30, size=(num_cities, num_cities))
-risk_matrix = np.random.rand(num_cities, num_cities)
-speed_matrix = np.random.uniform(30, 70, size=(12, num_cities, num_cities))
+# Önceden tanımlı örnek sabit matrisler (gerçek veriyle değiştirilmediği için hızlıdır)
+distance_matrix = np.array([
+    [0, 66.8, 105, 123, 130, 106, 109, 113],
+    [66.8, 0, 40.3, 57.8, 55.4, 41.5, 47.6, 52.1],
+    [105, 40.3, 0, 18.5, 23.9, 6, 11.8, 24.8],
+    [123, 57.8, 18.5, 0, 8.1, 16.4, 21.9, 19.2],
+    [130, 55.4, 23.9, 8.1, 0, 25.3, 28.2, 17.4],
+    [106, 41.5, 6, 16.4, 25.3, 0, 9.2, 21.3],
+    [109, 47.6, 11.8, 21.9, 28.2, 9.2, 0, 15.2],
+    [113, 52.1, 24.8, 19.2, 17.4, 21.3, 15.2, 0]
+])
 
-service_times = [0] + [random.randint(5, 15) for _ in range(num_cities - 1)]
-time_windows = [(360, 1080)] * num_cities
+risk_matrix = np.random.rand(num_cities, num_cities)
+speed_matrix = np.full((12, num_cities, num_cities), 60)  # Ortalama 60 km/h sabit hız
+
+service_times = [0] + [10] * (num_cities - 1)  # Her noktada 10 dk servis
+time_windows = [(360, 1080)] * num_cities  # 06:00 - 18:00
 
 def evaluate_route(route):
     total_distance = 0
@@ -22,9 +33,7 @@ def evaluate_route(route):
     for i in range(len(route) - 1):
         from_idx = cities.index(route[i])
         to_idx = cities.index(route[i + 1])
-        hour = int(current_time // 60) - 6
-        hour = max(0, min(hour, 11))
-        speed = speed_matrix[hour][from_idx][to_idx]
+        speed = speed_matrix[int(current_time // 60 - 6)][from_idx][to_idx]
         dist = distance_matrix[from_idx][to_idx]
         travel_time = dist / speed * 60
         arrival_time = current_time + travel_time
@@ -51,13 +60,12 @@ def evaluate_route(route):
     return total_distance, total_time, total_risk, log, avg_speed
 
 def run_ga(pop_size, generations, max_risk, hedef):
-    print("GA Başlıyor...")
     population = [random.sample(cities[1:], len(cities) - 1) for _ in range(pop_size)]
     population = [["Rafineri"] + p + ["Rafineri"] for p in population]
     best_route = None
     best_fitness = float("inf")
 
-    for gen in range(generations):
+    for _ in range(generations):
         scores = []
         for route in population:
             dist, time, risk, log, avg_speed = evaluate_route(route)
@@ -78,10 +86,6 @@ def run_ga(pop_size, generations, max_risk, hedef):
 
         scores.sort()
         best_fitness, best_route, best_dist, best_time, best_risk, best_log, best_avg_speed = scores[0][:7]
-
-        if gen % 10 == 0:
-            print(f"Gen {gen}: En iyi fitness = {best_fitness:.2f}")
-
         new_pop = [best_route]
         while len(new_pop) < pop_size:
             p1, p2 = random.choices(scores[:pop_size//2], k=2)
@@ -91,5 +95,4 @@ def run_ga(pop_size, generations, max_risk, hedef):
                 new_pop.append(child)
         population = new_pop
 
-    print("GA Bitti.")
     return best_route, best_dist, best_time, best_risk, best_log, best_avg_speed
