@@ -1,8 +1,4 @@
 
-import json
-import streamlit as st
-import os
-
 import streamlit as st
 from streamlit_option_menu import option_menu
 from optimizer import run_ga
@@ -23,45 +19,7 @@ with st.sidebar:
     )
 
 if secim == "Senaryo Oluştur":
-    
-# Senaryo Kaydetme
-def save_scenario(params, filename):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(params, f)
-
-# Senaryo Yükleme
-def load_scenario(filename):
-    with open(filename, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-# 🔽 Senaryo İşlemleri
-with st.expander("📦 Senaryo Kaydet / Yükle", expanded=False):
-    st.markdown("**Mevcut ayarları .json formatında kaydedebilir veya yükleyebilirsiniz.**")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("💾 Senaryoyu Kaydet"):
-            scenario_data = {
-                "pop_size": pop_size,
-                "generations": generations,
-                "max_risk": max_risk,
-                "hedef": hedef
-            }
-            save_scenario(scenario_data, "kayitli_senaryo.json")
-            st.success("Senaryo 'kayitli_senaryo.json' olarak kaydedildi.")
-
-    with col2:
-        uploaded_file = st.file_uploader("📂 Senaryo Yükle (.json)", type="json")
-        if uploaded_file is not None:
-            scenario = json.load(uploaded_file)
-            st.session_state["pop_size"] = scenario.get("pop_size", 50)
-            st.session_state["generations"] = scenario.get("generations", 100)
-            st.session_state["max_risk"] = scenario.get("max_risk", 25)
-            st.session_state["hedef"] = scenario.get("hedef", "Min Süre")
-            st.success("Senaryo başarıyla yüklendi. Lütfen sayfayı yeniden yükleyin.")
-
-
-st.title("🧪 Senaryo Oluştur")
+    st.title("🧪 Senaryo Oluştur")
     st.markdown("Optimizasyon parametrelerini girin:")
 
     pop_size = st.slider("Popülasyon Büyüklüğü", 0, 5000, 300, 50)
