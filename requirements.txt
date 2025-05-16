@@ -1,5 +1,7 @@
 streamlit
-plotly
-openrouteservice
-folium
 streamlit-option-menu
+streamlit-folium
+plotly
+folium
+openrouteservice
+numpy
