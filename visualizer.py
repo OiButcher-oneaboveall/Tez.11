@@ -17,7 +17,7 @@ city_coords = {
     "İstinye": [41.1099, 29.0570]
 }
 
-ors_client = openrouteservice.Client(key="your-api-key")  # <- Buraya kendi API anahtarını gir
+ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")  # <- Buraya kendi API anahtarını gir
 
 def plot_gantt(log):
     base_date = datetime(2024, 1, 1)
