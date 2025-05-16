@@ -20,22 +20,16 @@ if "senaryolar" not in st.session_state:
 with st.sidebar:
     st.image("https://img.icons8.com/ios-filled/100/FFFFFF/gas-pump.png", width=60)
     st.title("Parametreler")
-    pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
-    generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
-    max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
-    hedef = st.selectbox(
-        "Amaç Fonksiyonu",
-        ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"]
-    )
-    isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
-    hesapla = st.button("🚀 Hesapla ve Kaydet")
-
-selected = option_menu(
-    menu_title=None,
-    options=["📊 Sonuçlar", "🗺️ Harita", "📅 Zaman Çizelgesi", "📈 Karşılaştırma", "🌍 Emisyon & Enerji"],
-    icons=["bar-chart", "map", "calendar", "activity", "globe"],
-    orientation="horizontal"
-)
+    with st.form("parametre_formu"):
+        pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
+        generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
+        max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
+        hedef = st.selectbox(
+            "Amaç Fonksiyonu",
+            ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"]
+        )
+        isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
+        hesapla = st.form_submit_button("🚀 Hesapla ve Kaydet")
 
 if hesapla:
     with st.spinner("Genetik algoritma çalışıyor..."):
@@ -51,6 +45,13 @@ if hesapla:
         }
         st.session_state.senaryolar.append(st.session_state.sonuc)
     st.success("✅ Senaryo başarıyla hesaplandı ve kaydedildi!")
+
+selected = option_menu(
+    menu_title=None,
+    options=["📊 Sonuçlar", "🗺️ Harita", "📅 Zaman Çizelgesi", "📈 Karşılaştırma", "🌍 Emisyon & Enerji"],
+    icons=["bar-chart", "map", "calendar", "activity", "globe"],
+    orientation="horizontal"
+)
 
 if selected == "📊 Sonuçlar":
     st.title("📊 Optimizasyon Sonuçları")
