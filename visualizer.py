@@ -19,29 +19,45 @@ city_coords = {
 
 ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")
 
+
 def plot_gantt(log):
+    from datetime import datetime, timedelta
+    import plotly.figure_factory as ff
+
     base_date = datetime(2024, 1, 1)
     tasks = []
+
     for entry in log:
-        start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
-        end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
-        if start_dt < end_dt:
-            tasks.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt))
-        wait_min = entry.get("wait", 0)
-        if wait_min > 0:
-            wait_start = end_dt
-            wait_end = wait_start + timedelta(minutes=wait_min)
-            tasks.append(dict(Task=f"{entry['to']} (Bekleme)", Start=wait_start, Finish=wait_end))
-            end_dt = wait_end
-        service_min = entry.get("service", 0)
-        if service_min > 0:
-            service_start = end_dt
-            service_end = service_start + timedelta(minutes=service_min)
-            tasks.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end))
+        try:
+            start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+            end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
+            if start_dt < end_dt:
+                tasks.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt))
+
+            wait_min = entry.get("wait", 0)
+            if wait_min > 0:
+                wait_start = end_dt
+                wait_end = wait_start + timedelta(minutes=wait_min)
+                if wait_start < wait_end:
+                    tasks.append(dict(Task=f"{entry['to']} (Bekleme)", Start=wait_start, Finish=wait_end))
+                end_dt = wait_end
+
+            service_min = entry.get("service", 0)
+            if service_min > 0:
+                service_start = end_dt
+                service_end = service_start + timedelta(minutes=service_min)
+                if service_start < service_end:
+                    tasks.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end))
+
+        except Exception as e:
+            print(f"Gantt log hatası: {e}")
+
+    if not tasks:
+        raise ValueError("Gantt çizelgesi için uygun görev bulunamadı.")
+
     fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True,
                           group_tasks=True, showgrid_x=True, showgrid_y=True)
     return fig
-
 def plot_folium_route(city_names, log=None):
     m = folium.Map(location=[41.03, 28.96], zoom_start=11)
 
