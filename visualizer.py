@@ -2,7 +2,7 @@
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import folium
-from folium import Tooltip, PolyLine, Marker, Icon
+from folium import Tooltip, Marker, Icon, PolyLine, DivIcon
 from datetime import datetime, timedelta
 import openrouteservice
 
@@ -17,11 +17,7 @@ city_coords = {
     "İstinye": [41.1099, 29.0570]
 }
 
-ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")  # <- Buraya kendi API key'ini gir
-
-
-import plotly.figure_factory as ff
-from datetime import datetime, timedelta
+ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")
 
 def plot_gantt(log):
     base_date = datetime(2024, 1, 1)
@@ -42,24 +38,26 @@ def plot_gantt(log):
             service_start = end_dt
             service_end = service_start + timedelta(minutes=service_min)
             tasks.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end))
-    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True,
-                          showgrid_x=True, showgrid_y=True)
+    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True,
+                          group_tasks=True, showgrid_x=True, showgrid_y=True)
     return fig
-def plot_folium_route(city_names, log=None):
-    start_coord = city_coords.get("Rafineri", [41.015, 28.979])
-    m = folium.Map(location=start_coord, zoom_start=11)
 
-    for city in city_names:
+def plot_folium_route(city_names, log=None):
+    m = folium.Map(location=[41.03, 28.96], zoom_start=11)
+
+    # Marker'lara sıra numarası + isim yaz
+    for idx, city in enumerate(city_names):
         coord = city_coords.get(city)
         if coord:
-            folium.Marker(location=coord, tooltip=city, icon=folium.Icon(color="blue")).add_to(m)
+            label = f"{idx+1}. {city}"
+            Marker(location=coord, tooltip=label, icon=Icon(color="blue")).add_to(m)
 
+    # Gerçek yol ve yol süresi etiketleri
     for i in range(len(city_names) - 1):
         from_city = city_names[i]
         to_city = city_names[i+1]
         coord1 = city_coords[from_city]
         coord2 = city_coords[to_city]
-
         try:
             route = ors_client.directions(
                 coordinates=[coord1[::-1], coord2[::-1]],
@@ -67,19 +65,29 @@ def plot_folium_route(city_names, log=None):
                 format='geojson'
             )
             tooltip = f"{from_city} → {to_city}"
+            time_text = ""
             if log:
                 for entry in log:
                     if entry["from"] == from_city and entry["to"] == to_city:
-                        sh, sm = map(int, entry["departure"].split(":")[:2])
-                        eh, em = map(int, entry["arrival"].split(":")[:2])
-                        duration = (eh * 60 + em) - (sh * 60 + sm)
-                        tooltip += f"<br>{duration} dk"
+                        time_text = f"{entry['departure']}–{entry['arrival']}"
                         break
-            folium.GeoJson(route, name="route", tooltip=tooltip).add_to(m)
+            folium.GeoJson(route, tooltip=f"{tooltip}<br>{time_text}").add_to(m)
+
+            # Çizgi ortasına yazı yerleştir
+            mid_idx = len(route["features"][0]["geometry"]["coordinates"]) // 2
+            lon, lat = route["features"][0]["geometry"]["coordinates"][mid_idx]
+            folium.map.Marker(
+                [lat, lon],
+                icon=DivIcon(
+                    icon_size=(150,36),
+                    icon_anchor=(0,0),
+                    html=f'<div style="font-size: 10pt; color: black; background: white; padding: 2px; border-radius: 3px;">{time_text}</div>',
+                )
+            ).add_to(m)
 
         except Exception:
-            folium.PolyLine([coord1, coord2], color="red", weight=5,
-                            tooltip=Tooltip(f"{from_city} → {to_city}")).add_to(m)
+            PolyLine([coord1, coord2], color="red", weight=5,
+                     tooltip=Tooltip(f"{from_city} → {to_city}")).add_to(m)
 
     return m
 
