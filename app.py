@@ -1,99 +1,90 @@
 
 import streamlit as st
-from streamlit_option_menu import option_menu
 from optimizer import run_ga
-from visualizer import plot_folium_route, plot_gantt, plot_scenario_comparison, plot_emission_energy_comparison
+from visualizer import (
+    plot_gantt,
+    plot_folium_route,
+    plot_scenario_comparison,
+    plot_emission_energy_comparison
+)
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="Rota Optimizasyon Arayüzü")
+st.set_page_config(layout="wide", page_title="Rota Optimizasyonu", page_icon="🚛")
 
-if "results" not in st.session_state:
-    st.session_state["results"] = []
+if "sonuc" not in st.session_state:
+    st.session_state.sonuc = None
+if "senaryolar" not in st.session_state:
+    st.session_state.senaryolar = []
 
-with st.sidebar:
-    secim = option_menu(
-        menu_title="Menü",
-        options=["Senaryo Oluştur", "Harita ve Rota", "Zaman Çizelgesi", "Karşılaştırmalar", "Duyarlılık Analizi", "Karbon Salınımı"],
-        icons=["sliders", "map", "clock", "bar-chart", "activity", "leaf"],
-        default_index=0,
-    )
+st.title("🚛 Rota Optimizasyon Uygulaması")
 
-if secim == "Senaryo Oluştur":
-    st.title("🧪 Senaryo Oluştur")
-    st.markdown("Optimizasyon parametrelerini girin:")
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.markdown("### Parametre Girişi")
+with col2:
+    st.markdown("### " + " ")
 
-    pop_size = st.slider("Popülasyon Büyüklüğü", 0, 5000, 300, 50)
-    generations = st.slider("Nesil Sayısı", 0, 2500, 1000, 50)
-    max_risk = st.slider("Maksimum Toplam Risk", 0.0, 10.0, 2.5, 0.1)
-    hedef = st.selectbox("Amaç Fonksiyonu", ["Minimum Süre"])
+with st.form("opt_form"):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
+    with col2:
+        generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
+    with col3:
+        max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
 
-    if st.button("✅ Genetik Algoritmayı Çalıştır"):
-        with st.spinner("Optimizasyon çalışıyor..."):
-            try:
-                route, dist, time, risk, log = run_ga(pop_size, generations, max_risk, hedef)
-                avg_speed = round(dist / (time / 60), 2) if time > 0 else 0
-                name = f"{hedef} | Risk ≤ {max_risk}"
+    col4, col5 = st.columns([3, 1])
+    with col4:
+        hedef = st.selectbox("Amaç Fonksiyonu", [
+            "Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"
+        ])
+    with col5:
+        isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
 
-                st.session_state["results"].append({
-                    "name": name,
-                    "route": route,
-                    "dist": dist,
-                    "time": time,
-                    "risk": risk,
-                    "log": log,
-                    "avg_speed": avg_speed
-                })
+    hesapla = st.form_submit_button("🚀 Hesapla ve Kaydet")
 
-                st.success("En iyi rota başarıyla bulundu!")
-                st.write("🔁 Rota:", route)
-                st.write(f"📏 Mesafe: {dist:.2f} km | ⏱ Süre: {time:.2f} dk | ☢ Risk: {risk:.2f} | 🚀 Ortalama Hız: {avg_speed:.2f} km/h")
+if hesapla:
+    with st.spinner("Genetik algoritma çalışıyor..."):
+        route, dist, time, risk, log, avg_speed = run_ga(pop_size, generations, max_risk, hedef)
+        st.session_state.sonuc = {
+            "name": isim,
+            "route": route,
+            "dist": dist,
+            "time": time,
+            "risk": risk,
+            "log": log,
+            "avg_speed": avg_speed
+        }
+        st.session_state.senaryolar.append(st.session_state.sonuc)
+    st.success("✅ Senaryo başarıyla hesaplandı ve kaydedildi!")
 
-            except Exception as e:
-                st.error(f"Bir hata oluştu: {e}")
+if st.session_state.sonuc:
+    son = st.session_state.sonuc
+    st.subheader("📊 Optimizasyon Sonuçları")
+    st.write(f"**Senaryo:** {son['name']}")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Toplam Mesafe (km)", f"{son['dist']:.2f}")
+    col2.metric("Toplam Süre (dk)", f"{son['time']:.2f}")
+    col3.metric("Toplam Risk", f"{son['risk']:.4f}")
+    col4.metric("Ortalama Hız (km/s)", f"{son['avg_speed']:.2f}")
 
-elif secim == "Harita ve Rota":
-    st.title("🗺️ Rota Haritası")
-    if st.session_state["results"]:
-        son = st.session_state["results"][-1]
-        m = plot_folium_route(son["route"], son["log"])
-        components.html(m._repr_html_(), height=600)
-    else:
-        st.warning("Lütfen önce bir senaryo çalıştırın.")
+    st.subheader("🗺️ Rota Haritası")
+    fmap = plot_folium_route(son["route"], son["log"])
+    fmap.save("map.html")
+    with open("map.html", "r", encoding="utf-8") as f:
+        components.html(f.read(), height=600)
 
-elif secim == "Zaman Çizelgesi":
-    st.title("📊 Gantt Grafiği")
-    if st.session_state["results"]:
-        son = st.session_state["results"][-1]
-        fig = plot_gantt(son["log"])
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Önce bir senaryo çalıştırılmalı.")
+    st.subheader("📅 Zaman Çizelgesi (Gantt Grafiği)")
+    fig = plot_gantt(son["log"])
+    st.plotly_chart(fig, use_container_width=True)
 
-elif secim == "Karşılaştırmalar":
-    st.title("📈 Senaryo Karşılaştırması")
-    if len(st.session_state["results"]) >= 2:
-        fig1 = plot_scenario_comparison(st.session_state["results"])
-        st.plotly_chart(fig1, use_container_width=True)
-    else:
-        st.info("Kıyaslama için en az iki senaryo çalıştırmalısınız.")
-
-elif secim == "Duyarlılık Analizi":
-    st.title("🧬 Duyarlılık Analizi")
-    st.write("Farklı hedeflerle çalıştırılan senaryolar karşılaştırılır.")
-    if st.session_state["results"]:
-        for r in st.session_state["results"]:
-            st.markdown(f"**🎯 {r['name']}**")
-            st.write(f"- 📏 Mesafe: {r['dist']} km")
-            st.write(f"- ⏱ Süre: {r['time']} dk")
-            st.write(f"- ☢ Risk: {r['risk']}")
-            st.write(f"- 🚀 Ortalama Hız: {r['avg_speed']} km/h")
-    else:
-        st.warning("Henüz bir senaryo çalıştırmadınız.")
-
-elif secim == "Karbon Salınımı":
-    st.title("🌿 Karbon Salınımı ve Enerji Tüketimi")
-    if st.session_state["results"]:
-        fig2 = plot_emission_energy_comparison(st.session_state["results"])
+    st.subheader("📈 Senaryo Karşılaştırması")
+    if len(st.session_state.senaryolar) > 1:
+        fig2 = plot_scenario_comparison(st.session_state.senaryolar)
         st.plotly_chart(fig2, use_container_width=True)
     else:
-        st.info("Gösterilecek veri bulunamadı.")
+        st.info("Karşılaştırma için en az 2 senaryo hesaplanmalı.")
+
+    st.subheader("🌍 Karbon ve Enerji Analizi")
+    fig3 = plot_emission_energy_comparison(st.session_state.senaryolar)
+    st.plotly_chart(fig3, use_container_width=True)
