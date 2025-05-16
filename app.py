@@ -22,7 +22,7 @@ with st.sidebar:
     st.title("Parametreler")
     pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
     generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
-    max_risk = st.slider("Maksimum Risk", 0.0, 1.0, 0.3, step=0.01)
+    max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
     hedef = st.selectbox(
         "Amaç Fonksiyonu",
         ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"]
