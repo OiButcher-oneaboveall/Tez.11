@@ -17,7 +17,11 @@ city_coords = {
     "İstinye": [41.1099, 29.0570]
 }
 
-ors_client = openrouteservice.Client(key="5b3ce3597851110001cf62486f7204b3263d422c812e8c793740ded5")  # <- Buraya kendi API anahtarını gir
+ors_client = openrouteservice.Client(key="your-api-key")  # <- Buraya kendi API key'ini gir
+
+
+import plotly.figure_factory as ff
+from datetime import datetime, timedelta
 
 def plot_gantt(log):
     base_date = datetime(2024, 1, 1)
@@ -25,19 +29,22 @@ def plot_gantt(log):
     for entry in log:
         start_dt = datetime.strptime(entry["departure"][:5], "%H:%M").replace(year=2024, month=1, day=1)
         end_dt = datetime.strptime(entry["arrival"][:5], "%H:%M").replace(year=2024, month=1, day=1)
-        tasks.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt))
-        if entry.get("wait", 0) > 0:
+        if start_dt < end_dt:
+            tasks.append(dict(Task=f"{entry['from']}→{entry['to']} (Yol)", Start=start_dt, Finish=end_dt))
+        wait_min = entry.get("wait", 0)
+        if wait_min > 0:
             wait_start = end_dt
-            wait_end = wait_start + timedelta(minutes=entry["wait"])
+            wait_end = wait_start + timedelta(minutes=wait_min)
             tasks.append(dict(Task=f"{entry['to']} (Bekleme)", Start=wait_start, Finish=wait_end))
             end_dt = wait_end
-        if entry.get("service", 0) > 0:
+        service_min = entry.get("service", 0)
+        if service_min > 0:
             service_start = end_dt
-            service_end = service_start + timedelta(minutes=entry["service"])
+            service_end = service_start + timedelta(minutes=service_min)
             tasks.append(dict(Task=f"{entry['to']} (Servis)", Start=service_start, Finish=service_end))
-    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True, showgrid_x=True, showgrid_y=True)
+    fig = ff.create_gantt(tasks, index_col='Task', show_colorbar=True, group_tasks=True,
+                          showgrid_x=True, showgrid_y=True)
     return fig
-
 def plot_folium_route(city_names, log=None):
     start_coord = city_coords.get("Rafineri", [41.015, 28.979])
     m = folium.Map(location=start_coord, zoom_start=11)
