@@ -14,32 +14,31 @@ if "senaryolar" not in st.session_state:
 
 st.title("🚛 Rota Optimizasyon Uygulaması")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
     pop_size = st.slider("Popülasyon Büyüklüğü", 10, 200, 100, step=10)
 with col2:
     generations = st.slider("Nesil Sayısı", 10, 500, 200, step=10)
 with col3:
     max_risk = st.slider("Maksimum Risk", 0.0, 1.0, 0.3, step=0.01)
-with col4:
-    hedef = st.selectbox("Amaç Fonksiyonu", ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"])
 
+hedef = st.selectbox("Amaç Fonksiyonu", [
+    "Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"
+])
 isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
 hesapla = st.button("🚀 Hesapla ve Kaydet")
 
-st.markdown("---")
-
-col_s, col_u = st.columns(2)
-with col_s:
+col_d, col_y = st.columns(2)
+with col_d:
     if st.session_state.sonuc:
         st.download_button(
-            "📤 Senaryo Kaydet (JSON)",
+            label="📤 Senaryoyu Kaydet (JSON)",
             data=json.dumps(st.session_state.sonuc, indent=2),
             file_name=f"{st.session_state.sonuc['name']}.json",
             mime="application/json"
         )
-with col_u:
-    uploaded_file = st.file_uploader("📥 Senaryo Yükle (.json)", type=["json"])
+with col_y:
+    uploaded_file = st.file_uploader("📥 Yükle (.json)", type=["json"])
     if uploaded_file is not None:
         try:
             data = json.load(uploaded_file)
@@ -51,7 +50,7 @@ with col_u:
             st.error("Yükleme başarısız: " + str(e))
 
 if hesapla:
-    with st.spinner("Genetik algoritma çalışıyor..."):
+    with st.spinner("Hesaplanıyor..."):
         route, dist, time, risk, log, avg_speed = run_ga(pop_size, generations, max_risk, hedef)
         st.session_state.sonuc = {
             "name": isim,
@@ -63,24 +62,23 @@ if hesapla:
             "avg_speed": avg_speed
         }
         st.session_state.senaryolar.append(st.session_state.sonuc)
-    st.success("✅ Hesaplama tamamlandı!")
+    st.success("✅ Senaryo başarıyla hesaplandı.")
 
 if st.session_state.sonuc:
-    son = st.session_state.sonuc
+    s = st.session_state.sonuc
     st.subheader("📊 Sonuçlar")
-    st.write(f"**Senaryo:** {son['name']}")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Toplam Mesafe (km)", f"{son['dist']:.2f}")
-    c2.metric("Toplam Süre (dk)", f"{son['time']:.2f}")
-    c3.metric("Toplam Risk", f"{son['risk']:.4f}")
-    c4.metric("Ortalama Hız (km/s)", f"{son['avg_speed']:.2f}")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Mesafe (km)", f"{s['dist']:.2f}")
+    col2.metric("Süre (dk)", f"{s['time']:.2f}")
+    col3.metric("Risk", f"{s['risk']:.4f}")
+    col4.metric("Ortalama Hız", f"{s['avg_speed']:.2f}")
 
     st.subheader("🗺️ Rota Haritası")
-    fmap = plot_folium_route(son["route"], son["log"])
+    fmap = plot_folium_route(s["route"], s["log"])
     fmap.save("map.html")
     with open("map.html", "r", encoding="utf-8") as f:
         components.html(f.read(), height=600)
 
-    st.subheader("📅 Zaman Çizelgesi (Gantt Grafiği)")
-    fig = plot_gantt(son["log"])
+    st.subheader("📅 Zaman Çizelgesi")
+    fig = plot_gantt(s["log"])
     st.plotly_chart(fig, use_container_width=True)
