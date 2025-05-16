@@ -21,13 +21,13 @@ if "senaryolar" not in st.session_state:
 with st.sidebar:
     st.image("https://img.icons8.com/ios-filled/100/FFFFFF/gas-pump.png", width=60)
     st.title("Parametreler")
-    with st.form("form"):
-        pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
-        generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
-        max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
-        hedef = st.selectbox("Amaç Fonksiyonu", ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"])
-        isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
-        hesapla = st.form_submit_button("🚀 Hesapla ve Kaydet")
+
+    pop_size = st.slider("Popülasyon Büyüklüğü", 10, 5000, 100, step=10)
+    generations = st.slider("Nesil Sayısı", 10, 2500, 200, step=10)
+    max_risk = st.slider("Maksimum Risk", 0.0, 15.0, 0.3, step=0.1)
+    hedef = st.selectbox("Amaç Fonksiyonu", ["Minimum Süre", "Minimum Mesafe", "Minimum Risk", "Maksimum Ortalama Hız"])
+    isim = st.text_input("Senaryo İsmi", value=f"Senaryo-{len(st.session_state.senaryolar)+1}")
+    hesapla = st.button("🚀 Hesapla ve Kaydet")
 
     st.markdown("---")
     if st.session_state.sonuc:
